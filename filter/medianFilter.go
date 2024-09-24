@@ -101,6 +101,10 @@ func flattenImage(image [][]uint8) []uint8 {
 	return flattenedImage
 }
 
+func worker(startY, endY, startX, endX int, data func(y, x int) uint8, out chan<- [][]uint8) {
+	out <- medianFilter(startY, endY, startX, endX, data)
+}
+
 // filter reads in a png image, applies the filter and outputs the result as a png image.
 // filter is the function called by the tests in medianfilter_test.go
 func filter(filepathIn, filepathOut string, threads int) {
@@ -114,11 +118,71 @@ func filter(filepathIn, filepathOut string, threads int) {
 
 	immutableData := makeImmutableMatrix(getPixelData(img))
 	var newPixelData [][]uint8
-	
+
 	if threads == 1 {
 		newPixelData = medianFilter(0, height, 0, width, immutableData)
-	} else {
-		panic("TODO Implement me")
+	} else if threads == 2 {
+		out := make(chan [][]uint8)
+		go worker(0, height/2, 0, width, immutableData, out)
+		out2 := make(chan [][]uint8)
+		go worker(height/2, height, 0, width, immutableData, out2)
+		part1 := <-out
+		part2 := <-out2
+
+		newPixelData = append(newPixelData, part1...)
+		newPixelData = append(newPixelData, part2...)
+
+	} else if threads == 4 {
+		var chans [4]chan [][]uint8
+
+		// create array of channels (size = 4)
+		for i := range chans {
+			chans[i] = make(chan [][]uint8)
+		}
+
+		for i := 0; i < 4; i++ {
+			startY := i * (height / 4)
+			endY := (i + 1) * (height / 4)
+			go worker(startY, endY, 0, width, immutableData, chans[i])
+
+			part := <-chans[i]
+			newPixelData = append(newPixelData, part...)
+		}
+
+	} else if threads == 8 {
+		var chans [8]chan [][]uint8
+
+		// create array of channels (size = 4)
+		for i := range chans {
+			chans[i] = make(chan [][]uint8)
+		}
+
+		for i := 0; i < 8; i++ {
+			startY := i * (height / 8)
+			endY := (i + 1) * (height / 8)
+			go worker(startY, endY, 0, width, immutableData, chans[i])
+
+			part := <-chans[i]
+			newPixelData = append(newPixelData, part...)
+		}
+
+	} else if threads == 16 {
+		var chans [16]chan [][]uint8
+
+		// create array of channels (size = 4)
+		for i := range chans {
+			chans[i] = make(chan [][]uint8)
+		}
+
+		for i := 0; i < 16; i++ {
+			startY := i * (height / 16)
+			endY := (i + 1) * (height / 16)
+			go worker(startY, endY, 0, width, immutableData, chans[i])
+
+			part := <-chans[i]
+			newPixelData = append(newPixelData, part...)
+		}
+
 	}
 
 	imout := image.NewGray(image.Rect(0, 0, width, height))

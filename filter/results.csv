@@ -1,0 +1,6 @@
+name,time,range
+Filter/1_workers-10,0.14843150000000002,∞
+Filter/2_workers-10,0.095600875,∞
+Filter/4_workers-10,0.143713,∞
+Filter/8_workers-10,0.139445791,∞
+Filter/16_workers-10,0.12807616600000002,∞
